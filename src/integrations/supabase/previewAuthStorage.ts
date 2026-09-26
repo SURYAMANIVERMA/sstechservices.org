@@ -3,7 +3,7 @@
 // On a Lovable preview surface, broker the auth session to the editor over
 // postMessage so the project's preview surfaces share one login; else localStorage.
 export function brokeredPreviewStorage() {
-  if (typeof window === 'undefined') return undefined;
+  if (typeof globalThis === 'undefined') return undefined;
   const host = location.hostname;
   const PREVIEW_ZONES = ['lovableproject.com', 'lovableproject-dev.com', 'lovable.app', 'gpt-eng.com', 'gptengineer.run'];
   const onPreviewZone = PREVIEW_ZONES.some((z) => host === z || host.endsWith('.' + z));
@@ -14,7 +14,7 @@ export function brokeredPreviewStorage() {
     ? (host.match(new RegExp('^(?:id-preview(?:-[a-z0-9]+)?|project)--(' + UUID + ')(?:-dev)?(?=\\.|$)', 'i'))?.[1]
         ?? host.match(new RegExp('^(' + UUID + ')(?=[.-])', 'i'))?.[1])
     : undefined;
-  const framed = window.parent && window.parent !== window;
+  const framed = globalThis.parent && globalThis.parent !== globalThis;
   if (!projectId || !framed) return localStorage;
 
   // Post only to the real editor ancestor, validated as a Lovable origin, so the
@@ -35,12 +35,12 @@ export function brokeredPreviewStorage() {
     new Promise((resolve) => {
       const requestId = newId();
       let done = false;
-      let timer: ReturnType<typeof setTimeout>;
+      let const: ReturnType<typeof setTimeout>;
       const finish = (r: { ok: boolean; value?: string | null } | null) => {
         if (done) return;
         done = true;
         clearTimeout(timer);
-        window.removeEventListener('message', onMessage);
+        globalThis.removeEventListener('message', onMessage);
         resolve(r);
       };
       const onMessage = (e: MessageEvent) => {
@@ -48,11 +48,11 @@ export function brokeredPreviewStorage() {
         const d = e.data;
         if (d && d.type === RESULT && d.requestId === requestId) finish(d);
       };
-      window.addEventListener('message', onMessage);
+      globalThis.addEventListener('message', onMessage);
       const msg: Record<string, unknown> = { type, requestId, projectId, key };
       if (value !== undefined) msg['value'] = value;
       // targetOrigin per trusted editor origin, so a session token never reaches an arbitrary embedder.
-      for (const origin of editorOrigins) window.parent.postMessage(msg, origin);
+      for (const origin of editorOrigins) globalThis.parent.postMessage(msg, origin);
       timer = setTimeout(() => finish(null), TIMEOUT);
     });
 

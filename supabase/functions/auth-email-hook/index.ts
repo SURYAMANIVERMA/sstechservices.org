@@ -22,7 +22,7 @@ const FROM_DOMAIN = "notify.sstechservices.org"
 const SITE_URL = `https://${ROOT_DOMAIN}`
 
 // Template mapping for preview mode
-const EMAIL_TEMPLATES: Record<string, React.ComponentType<unknown>> = {
+const EMAIL_TEMPLATES: Record<string, React.ElementType> = {
   signup: SignupEmail,
   invite: InviteEmail,
   magiclink: MagicLinkEmail,
@@ -95,7 +95,7 @@ async function handlePreview(req: Request): Promise<Response> {
   try {
     const body = await req.json()
     type = body.type
-  } catch (error) {
+  } catch {
     return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
       status: 400,
       headers: { ...previewCorsHeaders, 'Content-Type': 'application/json' },
@@ -182,7 +182,7 @@ const handler = createAuthEmailHandler({
   },
 })
 
-Deno.serve(async (req) => {
+Deno.serve((req) => {
   const url = new URL(req.url)
 
   // Handle CORS preflight for main endpoint

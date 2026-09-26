@@ -7,7 +7,7 @@ import { AIChatbot } from "./AIChatbot";
 
 export const Layout = ({ children }: { children: ReactNode }) => {
   const { pathname } = useLocation();
-  useEffect(() => { globalThis.scrollTo(0, 0); }, [pathname]);
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
   return (
     <div className="min-h-screen flex flex-col">
       <Header />

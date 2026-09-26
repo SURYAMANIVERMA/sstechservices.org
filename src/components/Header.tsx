@@ -22,7 +22,7 @@ export const Header = () => {
   ];
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
+    const onScroll = () => setScrolled(globalThis.scrollY > 8);
     onScroll();
     globalThis.addEventListener("scroll", onScroll);
     return () => globalThis.removeEventListener("scroll", onScroll);

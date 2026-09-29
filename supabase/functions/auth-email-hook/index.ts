@@ -1,4 +1,4 @@
-import * as React from 'npm:react@18.3.1'
+import * as _React from 'npm:react@18.3.1'
 import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { createAuthEmailHandler } from 'npm:@lovable.dev/email-js@0.1.0'
 import { SignupEmail } from '../_shared/email-templates/signup.tsx'
@@ -22,7 +22,7 @@ const FROM_DOMAIN = "notify.sstechservices.org"
 const SITE_URL = `https://${ROOT_DOMAIN}`
 
 // Template mapping for preview mode
-const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
+const EMAIL_TEMPLATES: Record<string, React.ComponentType> = {
   signup: SignupEmail,
   invite: InviteEmail,
   magiclink: MagicLinkEmail,
@@ -95,7 +95,7 @@ async function handlePreview(req: Request): Promise<Response> {
   try {
     const body = await req.json()
     type = body.type
-  } catch (error) {
+  } catch (_error) {
     return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
       status: 400,
       headers: { ...previewCorsHeaders, 'Content-Type': 'application/json' },
@@ -182,7 +182,7 @@ const handler = createAuthEmailHandler({
   },
 })
 
-Deno.serve(async (req) => {
+Deno.serve(await (req) => {
   const url = new URL(req.url)
 
   // Handle CORS preflight for main endpoint

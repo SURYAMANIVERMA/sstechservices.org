@@ -7,5 +7,5 @@
 - [x] Verify desktop/mobile routes, interactions, and production build
 - [ ] Add WhatsApp Business new-lead alerts (blocked until connection is completed)
 - [x] Activate new-lead email delivery to info@sstechservices.org
-- [x] Add and verify bilingual live AI chatbot
+- [x] Add bilingual streaming AI chatbot with saved dashboard conversations and verify end to end
 - [x] Replace fictional gallery claims with verified-content project structure

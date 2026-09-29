@@ -1,115 +1,83 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
-import { Bot, Loader2, MessageSquareText, Send, Sparkles, UserRound } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport, type UIMessage } from "ai";
+import { Bot, MessageSquareText, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Textarea } from "@/components/ui/textarea";
+import { Conversation, ConversationContent, ConversationEmptyState, ConversationScrollButton } from "@/components/ai-elements/conversation";
+import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
+import { PromptInput, PromptInputFooter, PromptInputSubmit, PromptInputTextarea } from "@/components/ai-elements/prompt-input";
+import { Shimmer } from "@/components/ai-elements/shimmer";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { supabase } from "@/integrations/supabase/client";
 import { COMPANY } from "@/lib/company";
 
-type ChatMessage = { role: "user" | "assistant"; content: string };
+const storageKey = "ss-tech-chat-session";
+const newSessionId = () => crypto.randomUUID();
+const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/website-chatbot`;
 
-export const AIChatbot = () => {
+const ChatThread = ({ sessionId }: { sessionId: string }) => {
   const { language, text } = useLanguage();
-  const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const endRef = useRef<HTMLDivElement>(null);
+  const transport = useMemo(() => new DefaultChatTransport<UIMessage>({
+    api: functionUrl,
+    headers: {
+      apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+    },
+    body: { sessionId, language },
+  }), [sessionId, language]);
+  const { messages, sendMessage, status, stop, error } = useChat({ id: sessionId, transport });
   const suggestions = language === "hi"
     ? ["आप कौन-कौन सी IT सेवाएँ देते हैं?", "प्रोजेक्ट की कीमत कैसे तय होती है?", "लखनऊ में onsite support मिलता है?"]
     : ["Which IT services do you provide?", "How is project pricing estimated?", "Do you offer onsite support in Lucknow?"];
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
-
   const send = async (value: string) => {
-    const content = value.trim();
-    if (!content || loading) return;
-    const nextMessages = [...messages, { role: "user" as const, content }].slice(-10);
-    setMessages(nextMessages);
+    const clean = value.trim();
+    if (!clean || status === "submitted" || status === "streaming") return;
     setInput("");
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("website-chatbot", {
-        body: { language, messages: nextMessages },
-      });
-      if (error) throw error;
-      if (!data?.reply) throw new Error("Empty chatbot reply");
-      setMessages(current => [...current, { role: "assistant", content: data.reply }]);
-    } catch (error) {
-      console.error("chatbot failed", error);
-      setMessages(current => [...current, {
-        role: "assistant",
-        content: text("I’m temporarily unavailable. Please call or WhatsApp our team for immediate help.", "मैं अभी उपलब्ध नहीं हूँ। तुरंत सहायता के लिए हमारी टीम को कॉल या WhatsApp करें।"),
-      }]);
-    } finally {
-      setLoading(false);
-    }
+    await sendMessage({ text: clean });
   };
 
-  const onSubmit = (event: FormEvent) => {
-    event.preventDefault();
-    void send(input);
-  };
-
-  return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button size="icon" aria-label={text("Open AI assistant", "AI सहायक खोलें")} className="fixed bottom-5 right-24 z-40 h-14 w-14 rounded-full shadow-elegant">
-          <MessageSquareText className="h-6 w-6" />
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="right" className="flex h-full w-full flex-col gap-0 p-0 sm:max-w-md">
-        <SheetHeader className="border-b border-border px-5 py-5 pr-12 text-left">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-primary-foreground"><Sparkles className="h-5 w-5" /></span>
-            <div>
-              <SheetTitle>{text("SS TECH AI Assistant", "SS TECH AI सहायक")}</SheetTitle>
-              <SheetDescription>{text("Services, pricing guidance and project enquiries", "सेवाएँ, कीमत मार्गदर्शन और प्रोजेक्ट जानकारी")}</SheetDescription>
-            </div>
+  return <>
+    <Conversation className="min-h-0 flex-1">
+      <ConversationContent className="gap-5 px-5 py-5">
+        {messages.length === 0 && <ConversationEmptyState className="justify-start p-0 text-left" icon={<img src={COMPANY.logo} alt="" className="h-12 w-12 object-contain" />} title={text("Namaste! How can we help?", "नमस्ते! हम आपकी कैसे मदद कर सकते हैं?")} description={text("Ask about our IT services, pricing guidance or project capabilities.", "हमारी IT सेवाओं, कीमत मार्गदर्शन या प्रोजेक्ट क्षमताओं के बारे में पूछें।")}>
+          <div className="w-full space-y-2">
+            <div className="mb-4 flex items-start gap-3"><img src={COMPANY.logo} alt="SS TECH SERVICES assistant" className="h-11 w-11 object-contain" /><div><h3 className="font-semibold">{text("Namaste! How can we help?", "नमस्ते! हम आपकी कैसे मदद कर सकते हैं?")}</h3><p className="mt-1 text-sm text-muted-foreground">{text("Ask about our IT services, pricing guidance or project capabilities.", "हमारी IT सेवाओं, कीमत मार्गदर्शन या प्रोजेक्ट क्षमताओं के बारे में पूछें।")}</p></div></div>
+            {suggestions.map(suggestion => <Button key={suggestion} type="button" variant="outline" className="h-auto w-full justify-start whitespace-normal py-3 text-left" onClick={() => void send(suggestion)}>{suggestion}</Button>)}
           </div>
-        </SheetHeader>
+        </ConversationEmptyState>}
+        {messages.map(message => <Message key={message.id} from={message.role}><MessageContent className={message.role === "user" ? "bg-primary text-primary-foreground" : undefined}>{message.parts.map((part, index) => part.type === "text" ? <MessageResponse key={`${message.id}-${index}`}>{part.text}</MessageResponse> : null)}</MessageContent></Message>)}
+        {status === "submitted" && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Bot className="h-4 w-4 text-primary" /><Shimmer>{text("Preparing an answer…", "उत्तर तैयार हो रहा है…")}</Shimmer></div>}
+        {error && <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error.message}</p>}
+      </ConversationContent>
+      <ConversationScrollButton />
+    </Conversation>
+    <div className="border-t border-border p-4">
+      <PromptInput onSubmit={({ text: value }) => send(value)}>
+        <PromptInputTextarea value={input} onChange={event => setInput(event.target.value)} maxLength={800} placeholder={text("Ask about services, pricing or projects…", "सेवाओं, कीमत या प्रोजेक्ट के बारे में पूछें…")} />
+        <PromptInputFooter>
+          <span className="text-[11px] text-muted-foreground">{text("Final pricing requires assessment.", "अंतिम कीमत के लिए असेसमेंट जरूरी है।")}</span>
+          <PromptInputSubmit status={status} onStop={() => void stop()} disabled={!input.trim() && status === "ready"} />
+        </PromptInputFooter>
+      </PromptInput>
+      <div className="mt-3 flex justify-center gap-4 text-xs font-medium"><a href={`tel:${COMPANY.phoneRaw}`} className="text-primary hover:underline">{text("Call team", "टीम को कॉल करें")}</a><a href={`https://wa.me/${COMPANY.whatsapp}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">WhatsApp</a></div>
+    </div>
+  </>;
+};
 
-        <ScrollArea className="min-h-0 flex-1 px-5 py-5">
-          {messages.length === 0 && (
-            <div className="space-y-5">
-              <div className="rounded-md border border-border bg-secondary p-4">
-                <Bot className="mb-3 h-6 w-6 text-primary" />
-                <p className="text-sm leading-relaxed">{text("Namaste! Ask me about SS TECH SERVICES, project planning or indicative pricing. I’ll connect you with our team when a site assessment is needed.", "नमस्ते! SS TECH SERVICES, प्रोजेक्ट योजना या अनुमानित कीमत के बारे में पूछें। साइट असेसमेंट की जरूरत होने पर मैं आपको हमारी टीम से जोड़ूँगा।")}</p>
-              </div>
-              <div className="space-y-2">
-                {suggestions.map(suggestion => (
-                  <Button key={suggestion} variant="outline" className="h-auto w-full justify-start whitespace-normal py-3 text-left" onClick={() => void send(suggestion)}>{suggestion}</Button>
-                ))}
-              </div>
-            </div>
-          )}
-          <div className="space-y-4">
-            {messages.map((message, index) => (
-              <div key={`${message.role}-${index}`} className={`flex gap-2 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-                {message.role === "assistant" && <span className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary"><Bot className="h-4 w-4 text-primary" /></span>}
-                <div className={`max-w-[82%] whitespace-pre-wrap rounded-md px-4 py-3 text-sm leading-relaxed ${message.role === "user" ? "bg-primary text-primary-foreground" : "border border-border bg-card"}`}>{message.content}</div>
-                {message.role === "user" && <UserRound className="mt-2 h-4 w-4 shrink-0 text-muted-foreground" />}
-              </div>
-            ))}
-            {loading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />{text("Preparing an answer…", "उत्तर तैयार हो रहा है…")}</div>}
-            <div ref={endRef} />
-          </div>
-        </ScrollArea>
+export const AIChatbot = () => {
+  const { text } = useLanguage();
+  const [open, setOpen] = useState(false);
+  const [sessionId, setSessionId] = useState(() => localStorage.getItem(storageKey) ?? newSessionId());
+  useEffect(() => localStorage.setItem(storageKey, sessionId), [sessionId]);
+  const reset = () => setSessionId(newSessionId());
 
-        <div className="border-t border-border p-4">
-          <form onSubmit={onSubmit} className="flex items-end gap-2">
-            <Textarea value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(input); } }} maxLength={800} rows={2} placeholder={text("Ask about services, pricing or projects…", "सेवाओं, कीमत या प्रोजेक्ट के बारे में पूछें…")} className="min-h-[52px] resize-none" />
-            <Button type="submit" size="icon" disabled={loading || !input.trim()} aria-label={text("Send message", "संदेश भेजें")}><Send className="h-4 w-4" /></Button>
-          </form>
-          <p className="mt-2 text-center text-[11px] text-muted-foreground">{text("Indicative guidance only. Final scope and pricing require assessment.", "यह प्रारंभिक मार्गदर्शन है। अंतिम कार्यक्षेत्र और कीमत के लिए असेसमेंट जरूरी है।")}</p>
-          <div className="mt-3 flex justify-center gap-4 text-xs font-medium">
-            <a href={`tel:${COMPANY.phoneRaw}`} className="text-primary hover:underline">{text("Call team", "टीम को कॉल करें")}</a>
-            <a href={`https://wa.me/${COMPANY.whatsapp}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">WhatsApp</a>
-          </div>
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
+  return <Sheet open={open} onOpenChange={setOpen}>
+    <SheetTrigger asChild><Button size="icon" aria-label={text("Open AI assistant", "AI सहायक खोलें")} className="fixed bottom-5 right-24 z-40 h-14 w-14 rounded-full shadow-elegant"><MessageSquareText className="h-6 w-6" /></Button></SheetTrigger>
+    <SheetContent side="right" className="flex h-full w-full flex-col gap-0 p-0 sm:max-w-md">
+      <SheetHeader className="border-b border-border px-5 py-4 pr-12 text-left"><div className="flex items-center gap-3"><img src={COMPANY.logo} alt="SS TECH SERVICES" className="h-10 w-10 object-contain" /><div className="min-w-0"><SheetTitle>{text("SS TECH AI Assistant", "SS TECH AI सहायक")}</SheetTitle><SheetDescription>{text("Services, pricing and projects", "सेवाएँ, कीमत और प्रोजेक्ट")}</SheetDescription></div><Button type="button" variant="ghost" size="icon" className="ml-auto shrink-0" onClick={reset} title={text("New conversation", "नई बातचीत")} aria-label={text("New conversation", "नई बातचीत")}><Plus className="h-5 w-5" /></Button></div></SheetHeader>
+      <ChatThread key={sessionId} sessionId={sessionId} />
+    </SheetContent>
+  </Sheet>;
 };

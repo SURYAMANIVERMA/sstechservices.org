@@ -13,6 +13,7 @@ import Careers from "./pages/Careers.tsx";
 import Contact from "./pages/Contact.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import ServiceAdvisor from "./pages/ServiceAdvisor.tsx";
+import ChatDashboard from "./pages/ChatDashboard.tsx";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,8 @@ const App = () => (
               <Route path="/careers" element={<Careers />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/service-advisor" element={<ServiceAdvisor />} />
+              <Route path="/dashboard" element={<ChatDashboard />} />
+              <Route path="/dashboard/:sessionId" element={<ChatDashboard />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Layout>

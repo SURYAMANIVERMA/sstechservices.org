@@ -7,3 +7,5 @@ project_id = "utpchemiiopnpmikgecj"
     verify_jwt = false
   [functions.submit-inquiry]
     verify_jwt = false
+  [functions.website-chatbot]
+    verify_jwt = false

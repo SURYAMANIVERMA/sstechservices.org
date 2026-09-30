@@ -182,7 +182,7 @@ const handler = createAuthEmailHandler({
   },
 })
 
-Deno.serve(await (req) => {
+Deno.serve(await using (req) => {
   const url = new URL(req.url)
 
   // Handle CORS preflight for main endpoint
